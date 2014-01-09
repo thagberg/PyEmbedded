@@ -15,5 +15,9 @@ def create_quads():
                  bottom_left=(200, 350),
                  top_right=(400, 250),
                  color=(0, 0, 1))
+    quad3 = Quad(center=(200, 200),
+                 bottom_left=(-50, -50),
+                 top_right=(50, 50),
+                 color=(1, 0, 0))
 
-    return [quad1, quad2]
+    return [quad1, quad2, quad3]

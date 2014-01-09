@@ -43,10 +43,11 @@ int initGL() {
     return 0;
 }
 
-void render(quad quads[], int size) {
+void render(quad *quads, int size) {
     glClear(GL_COLOR_BUFFER_BIT);
     glLoadIdentity();
 
+    printf("Render called: %d\n", sizeof(quads));
     int i;
     for (i = 0; i < size; i++) {
         // loop over the given quads and render each one
@@ -68,6 +69,7 @@ void render(quad quads[], int size) {
             glVertex2f(left, bot);
         glEnd();
     }
+    printf("Done rendering\n");
 
     SDL_GL_SwapBuffers();
 }
@@ -80,7 +82,7 @@ int translate_quads(quad *quads, PyObject *pyobj) {
 
     int i;
     int num_quads = PySequence_Size(pyobj);
-    quads = malloc(sizeof(quad) * num_quads);
+    quads = (quad *) malloc(sizeof(quad) * num_quads);
     printf("Memory allocated: %d\n", sizeof(quad)*num_quads);
     printf("Number of quads: %d\n", num_quads);
     for (i = 0; i < num_quads; i++) {
@@ -196,9 +198,9 @@ int main(int argc, char* argv[]) {
         }
         render(quads, num_quads);
     }
+    free(quads);
     Py_Finalize();
 
-    free(quads);
 
     return 0;
 }
