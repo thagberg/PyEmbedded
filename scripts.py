@@ -7,6 +7,7 @@ class Quad(object):
 
 
 def create_quads():
+    print "Creating Quad Objects"
     quad1 = Quad(center=(25, 75),
                  bottom_left=(10, 100),
                  top_right=(40, 60),
@@ -20,4 +21,5 @@ def create_quads():
                  top_right=(50, 50),
                  color=(1, 0, 0))
 
+    print "Finished creating Quad Objects"
     return [quad1, quad2, quad3]

@@ -17,10 +17,10 @@ typedef struct rgb_color {
 } rgb_color;
 
 typedef struct quad {
-    point center;
-    point bottom_left;
-    point top_right;
-    rgb_color color;
+    point *center;
+    point *bottom_left;
+    point *top_right;
+    rgb_color *color;
 } quad;
 
 
@@ -50,19 +50,20 @@ void render(quad *quads, int size) {
     printf("Render called: %d\n", sizeof(quads));
     int i;
     for (i = 0; i < size; i++) {
+        printf("Render: %d\n", i);
         // loop over the given quads and render each one
-        float cen_x = quads[i].center.x;
-        float cen_y = quads[i].center.y;
-        float left = quads[i].bottom_left.x;
-        float bot = quads[i].bottom_left.y;
-        float right = quads[i].top_right.x;
-        float top = quads[i].top_right.y;
-        rgb_color color = quads[i].color;
+        float cen_x = quads[i].center->x;
+        float cen_y = quads[i].center->y;
+        float left = quads[i].bottom_left->x;
+        float bot = quads[i].bottom_left->y;
+        float right = quads[i].top_right->x;
+        float top = quads[i].top_right->y;
+        rgb_color *color = quads[i].color;
 
         glTranslatef(cen_x, cen_y, 0.0f);
         // draw the quad
         glBegin(GL_QUADS);
-            glColor3f(color.r, color.g, color.b);
+            glColor3f(color->r, color->g, color->b);
             glVertex2f(left, top);
             glVertex2f(right, top);
             glVertex2f(right, bot);
@@ -74,7 +75,7 @@ void render(quad *quads, int size) {
     SDL_GL_SwapBuffers();
 }
 
-int translate_quads(quad *quads, PyObject *pyobj) {
+int translate_quads(quad **quads, PyObject *pyobj) {
     printf("Translating quads\n");
     if (PySequence_Check(pyobj) == 0) {
         // pass 
@@ -82,53 +83,40 @@ int translate_quads(quad *quads, PyObject *pyobj) {
 
     int i;
     int num_quads = PySequence_Size(pyobj);
-    quads = (quad *) malloc(sizeof(quad) * num_quads);
+    *quads = malloc(sizeof(quad) * num_quads);
     printf("Memory allocated: %d\n", sizeof(quad)*num_quads);
     printf("Number of quads: %d\n", num_quads);
     for (i = 0; i < num_quads; i++) {
         printf("Parsing quad\n");
         PyObject *py_quad = PySequence_GetItem(pyobj, i);
-        if (py_quad == NULL) {
-            printf("py quad is null\n");
-        }
         PyObject *py_center = PyObject_GetAttrString(py_quad, "center");
-        if (py_center == NULL) {
-            printf("py center is null\n");
-        }
         PyObject *py_bottom_left = PyObject_GetAttrString(py_quad, "bottom_left");
-        if (py_bottom_left == NULL) {
-            printf("py bottom left is null\n");
-        }
         PyObject *py_top_right = PyObject_GetAttrString(py_quad, "top_right");
-        if (py_top_right == NULL) {
-            printf("py top right is null\n");
-        }
         PyObject *py_color = PyObject_GetAttrString(py_quad, "color");
-        if (py_color == NULL) {
-            printf("py color is null\n");
-        }
 
-        point center, bottom_left, top_right;
-        rgb_color color;
+        point *center, *bottom_left, *top_right;
+        rgb_color *color;
+
+        center = malloc(sizeof(point));
+        bottom_left = malloc(sizeof(point));
+        top_right = malloc(sizeof(point));
+        color = malloc(sizeof(rgb_color));
 
         float *x1, *y1, *x2, *y2, *x3, *y3, *r, *g, *b;
-        PyArg_ParseTuple(py_center, "ff", &center.x, &center.y);
-        PyArg_ParseTuple(py_bottom_left, "ff", &bottom_left.x, &bottom_left.y);
-        PyArg_ParseTuple(py_top_right, "ff", &top_right.x, &top_right.y);
-        PyArg_ParseTuple(py_color, "fff", &color.r, &color.g, &color.b);
-        /*PyArg_ParseTuple(py_center, "ff", x1, y1);
-        PyArg_ParseTuple(py_bottom_left, "ff", &(bottom_left.x), &(bottom_left.y));
-        PyArg_ParseTuple(py_top_right, "ff", &(top_right.x), &(top_right.y));
-        PyArg_ParseTuple(py_color, "fff", &(color.r), &(color.g), &(color.b));*/
+        PyArg_ParseTuple(py_center, "ff", &(center->x), &(center->y));
+        PyArg_ParseTuple(py_bottom_left, "ff", &(bottom_left->x), &(bottom_left->y));
+        PyArg_ParseTuple(py_top_right, "ff", &(top_right->x), &(top_right->y));
+        PyArg_ParseTuple(py_color, "fff", &(color->r), &(color->g), &(color->b));
         printf("Stuff parsed\n");
 
-        //quads[i] = *quad;
-        quads[i].center = center;
-        quads[i].bottom_left = bottom_left;
-        quads[i].top_right = top_right;
-        quads[i].color = color;
+        printf("Center: %f %f\n", center->x, center->y);
+        quads[i]->center = center;
+        quads[i]->bottom_left = bottom_left;
+        quads[i]->top_right = top_right;
+        quads[i]->color = color;
     }
 
+    printf("quad: %d\n", *quads);
     return num_quads;
 }
 
@@ -173,17 +161,20 @@ int main(int argc, char* argv[]) {
     quad *quads;
     int num_quads;
 
+    printf("Initializing Python\n");
     Py_Initialize();
     PySys_SetPath(".");
+    printf("Importing modules\n");
     script_module = PyImport_ImportModule("scripts");
     mod_func = PyObject_GetAttrString(script_module, "create_quads");
     // this is where we call the python script
-    ret_obj = PyEval_CallObject(mod_func, args);
+    ret_obj = PyEval_CallObject(mod_func, NULL);
     // translate and store quad objects
     if (ret_obj == NULL) {
         printf("Failed to retrieve quads\n");
+        return 1;
     }
-    num_quads = translate_quads(quads, ret_obj);
+    num_quads = translate_quads(&quads, ret_obj);
 
     // run the main loop
     int running = 1;
