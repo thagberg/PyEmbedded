@@ -72,6 +72,64 @@ void render(quad quads[], int size) {
     SDL_GL_SwapBuffers();
 }
 
+int translate_quads(quad *quads, PyObject *pyobj) {
+    printf("Translating quads\n");
+    if (PySequence_Check(pyobj) == 0) {
+        // pass 
+    }
+
+    int i;
+    int num_quads = PySequence_Size(pyobj);
+    quads = malloc(sizeof(quad) * num_quads);
+    printf("Memory allocated: %d\n", sizeof(quad)*num_quads);
+    printf("Number of quads: %d\n", num_quads);
+    for (i = 0; i < num_quads; i++) {
+        printf("Parsing quad\n");
+        PyObject *py_quad = PySequence_GetItem(pyobj, i);
+        if (py_quad == NULL) {
+            printf("py quad is null\n");
+        }
+        PyObject *py_center = PyObject_GetAttrString(py_quad, "center");
+        if (py_center == NULL) {
+            printf("py center is null\n");
+        }
+        PyObject *py_bottom_left = PyObject_GetAttrString(py_quad, "bottom_left");
+        if (py_bottom_left == NULL) {
+            printf("py bottom left is null\n");
+        }
+        PyObject *py_top_right = PyObject_GetAttrString(py_quad, "top_right");
+        if (py_top_right == NULL) {
+            printf("py top right is null\n");
+        }
+        PyObject *py_color = PyObject_GetAttrString(py_quad, "color");
+        if (py_color == NULL) {
+            printf("py color is null\n");
+        }
+
+        point center, bottom_left, top_right;
+        rgb_color color;
+
+        float *x1, *y1, *x2, *y2, *x3, *y3, *r, *g, *b;
+        PyArg_ParseTuple(py_center, "ff", &center.x, &center.y);
+        PyArg_ParseTuple(py_bottom_left, "ff", &bottom_left.x, &bottom_left.y);
+        PyArg_ParseTuple(py_top_right, "ff", &top_right.x, &top_right.y);
+        PyArg_ParseTuple(py_color, "fff", &color.r, &color.g, &color.b);
+        /*PyArg_ParseTuple(py_center, "ff", x1, y1);
+        PyArg_ParseTuple(py_bottom_left, "ff", &(bottom_left.x), &(bottom_left.y));
+        PyArg_ParseTuple(py_top_right, "ff", &(top_right.x), &(top_right.y));
+        PyArg_ParseTuple(py_color, "fff", &(color.r), &(color.g), &(color.b));*/
+        printf("Stuff parsed\n");
+
+        //quads[i] = *quad;
+        quads[i].center = center;
+        quads[i].bottom_left = bottom_left;
+        quads[i].top_right = top_right;
+        quads[i].color = color;
+    }
+
+    return num_quads;
+}
+
 int main(int argc, char* argv[]) {
     if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
         printf("Failed to init SDL\n");
@@ -91,7 +149,7 @@ int main(int argc, char* argv[]) {
     SDL_WM_SetCaption("Exciting Things", NULL);
 
     // set up the quads we will be rendering 
-    quad quads[NUM_QUADS];
+    /*quad quads[NUM_QUADS];
     int i = 0;
     point q1_center, q1_bl, q1_tr,
           q2_center, q2_bl, q2_tr,
@@ -104,12 +162,30 @@ int main(int argc, char* argv[]) {
     quads[0].center = q1_center;
     quads[0].bottom_left = q1_bl;
     quads[0].top_right = q1_tr;
-    quads[0].color = color;
+    quads[0].color = color;*/
+
+
+    // objects for running a python script
+    PyObject *script_module, *ret_obj, *mod_func, *args;
+    // pointer for array we will dump script results in
+    quad *quads;
+    int num_quads;
+
+    Py_Initialize();
+    PySys_SetPath(".");
+    script_module = PyImport_ImportModule("scripts");
+    mod_func = PyObject_GetAttrString(script_module, "create_quads");
+    // this is where we call the python script
+    ret_obj = PyEval_CallObject(mod_func, args);
+    // translate and store quad objects
+    if (ret_obj == NULL) {
+        printf("Failed to retrieve quads\n");
+    }
+    num_quads = translate_quads(quads, ret_obj);
 
     // run the main loop
     int running = 1;
     SDL_Event event;
-    Py_Initialize();
     while(running) {
         while(SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -118,9 +194,11 @@ int main(int argc, char* argv[]) {
                 //pass
             }
         }
-        render(quads, NUM_QUADS);
+        render(quads, num_quads);
     }
     Py_Finalize();
+
+    free(quads);
 
     return 0;
 }
